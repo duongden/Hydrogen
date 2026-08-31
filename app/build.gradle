@@ -104,31 +104,37 @@ dependencies {
     implementation fileTree("libs")
 }
 
-// 从 app 模块的 assets/core/app_info.lua 读取版本号
-def getAppVersion() {
+// 从 app 模块的 assets/core/app_info.lua 读取版本信息
+def getAppVersionInfo() {
     def coreVersion = "unknown"
+    def coreVersionName = "unknown"
     def appInfoFile = file("src/main/assets/core/app_info.lua")
     if (appInfoFile.exists()) {
         try {
             def text = appInfoFile.getText('UTF-8')
             // 匹配 M.version = 0.1
-            def matcher = text =~ /M\.version\s*=\s*([\d.]+)/
-            if (matcher.find()) {
-                coreVersion = matcher.group(1)
+            def versionMatcher = text =~ /M\.version\s*=\s*([\d.]+)/
+            if (versionMatcher.find()) {
+                coreVersion = versionMatcher.group(1)
+            }
+            // 匹配 M.versionName = "new"
+            def nameMatcher = text =~ /M\.versionName\s*=\s*"([^"]+)"/
+            if (nameMatcher.find()) {
+                coreVersionName = nameMatcher.group(1)
             }
         } catch (Exception e) {
             println "WARNING: 无法读取 app_info.lua: ${e.message}"
         }
     }
-    return coreVersion
+    return [version: coreVersion, versionName: coreVersionName]
 }
 
-// APK 命名：只根据 assets/core/app_info.lua 的 M.version 重命名（不再拼接 gradle versionName）
+// APK 命名：Hydrogen_<versionName>_<version>.apk（源自 assets/core/app_info.lua）
 androidComponents {
     onVariants(selector().all()) { variant ->
         variant.outputs.each { output ->
-            def coreVer = getAppVersion()
-            def newName = "Hydrogen_${coreVer}.apk"
+            def info = getAppVersionInfo()
+            def newName = "Hydrogen_${info.versionName}_${info.version}.apk"
             output.outputFileName.set(newName)
         }
     }
